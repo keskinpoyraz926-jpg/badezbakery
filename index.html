@@ -1,0 +1,921 @@
+```html
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BADEZ BAKERY - Online Menü</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            600: '#1d2b64',
+                            700: '#182455',
+                            800: '#121b42',
+                            900: '#0c122e',
+                        },
+                        cream: {
+                            50: '#fcfbfa',
+                            100: '#faf6ee',
+                            200: '#f4ece0',
+                            300: '#ebd8c2',
+                            800: '#5c4d3d'
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Playfair Display', 'Cormorant Garamond', 'serif'],
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            background-color: #FAF6EE;
+            color: #121b42;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .serif-title {
+            font-family: 'Playfair Display', serif;
+        }
+        /* Custom scrollbar for categories */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .product-card {
+            box-shadow: 0 4px 20px -2px rgba(29, 43, 100, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .product-card:active {
+            transform: scale(0.985);
+        }
+        /* Image zoom container styles */
+        .zoom-viewport {
+            overflow: hidden;
+            touch-action: none;
+            cursor: grab;
+        }
+        .zoom-viewport:active {
+            cursor: grabbing;
+        }
+        .zoom-image {
+            transition: transform 0.15s ease-out;
+            transform-origin: center center;
+            will-change: transform;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-16 relative selection:bg-navy-600 selection:text-white">
+
+    <!-- Header / Brand Title -->
+    <header class="sticky top-0 z-30 bg-[#FAF6EE]/95 backdrop-blur-md border-b border-cream-200 shadow-sm">
+        <div class="max-w-3xl mx-auto px-4 py-4 flex flex-col items-center relative">
+            
+            <!-- Admin Login Button -->
+            <button id="adminLoginBtn" onclick="openAdminAuthModal()" class="absolute right-4 top-4 text-navy-600 hover:text-navy-900 bg-cream-200/70 hover:bg-cream-200 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-user-gear"></i>
+                <span id="adminBtnText">Yönetici Girişi</span>
+            </button>
+
+            <!-- Bakery Title -->
+            <h1 class="serif-title text-3xl sm:text-4xl font-extrabold text-navy-600 tracking-wider text-center mt-1">
+                BADEZ BAKERY
+            </h1>
+            
+            <!-- Decorative divider line -->
+            <div class="flex items-center justify-center gap-3 w-full my-2">
+                <div class="h-[1px] w-12 bg-navy-600/40"></div>
+                <span class="text-xs font-bold tracking-widest text-navy-600/80 uppercase">MENU</span>
+                <div class="h-[1px] w-12 bg-navy-600/40"></div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="w-full max-w-md mt-2 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-600/50 text-sm"></i>
+                <input type="text" id="searchInput" oninput="filterProducts()" placeholder="Menüde lezzet veya tatlı ara..." class="w-full pl-10 pr-4 py-2.5 bg-white/80 border border-cream-300 rounded-full text-sm text-navy-900 placeholder:text-navy-600/40 focus:outline-none focus:ring-2 focus:ring-navy-600/30 transition shadow-xs">
+            </div>
+        </div>
+
+        <!-- Filter Category Chips -->
+        <div class="max-w-3xl mx-auto px-4 pb-3 overflow-x-auto hide-scrollbar">
+            <div id="categoryContainer" class="flex items-center gap-2 min-w-max py-1">
+                <!-- Categories dynamically loaded here -->
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-3xl mx-auto px-4 pt-6">
+        
+        <!-- Admin Bar Notice (Visible when logged in as admin) -->
+        <div id="adminNoticeBar" class="hidden mb-6 p-3.5 bg-navy-600 text-white rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-md">
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-medium">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Yönetici Modu Aktif (Fotoğraf, Fiyat & Açıklama Düzenleyebilirsiniz)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openAddItemModal()" class="bg-white text-navy-600 hover:bg-cream-100 text-xs px-3 py-1.5 rounded-xl font-bold transition">
+                    <i class="fa-solid fa-plus mr-1"></i> Yeni Ürün
+                </button>
+                <button onclick="logoutAdmin()" class="bg-red-500/80 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition">
+                    Çıkış
+                </button>
+            </div>
+        </div>
+
+        <!-- Hint Banner for Customers -->
+        <div class="mb-4 text-center">
+            <p class="text-xs text-navy-600/60 font-semibold flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-hand-pointer text-navy-600/70"></i>
+                Detayları görmek ve fotoğrafı yaklaştırmak için ürüne tıklayın
+            </p>
+        </div>
+
+        <!-- Products Feed Container (Downwards Scrolling Layout) -->
+        <div id="productsFeed" class="space-y-6">
+            <!-- Product Cards render dynamically -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <i class="fa-solid fa-utensils text-4xl text-navy-600/30 mb-3"></i>
+            <p class="text-navy-800 font-medium">Aramanızla eşleşen bir lezzet bulunamadı.</p>
+            <p class="text-xs text-navy-600/60 mt-1">Farklı bir arama yapmayı veya kategori değiştirmeyi deneyin.</p>
+        </div>
+    </main>
+
+    <!-- Product Detail & Interactive Zoom Modal -->
+    <div id="productDetailModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md hidden items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-[#FAF6EE] rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col relative border border-cream-300 my-auto max-h-[92vh]">
+            
+            <!-- Header Bar -->
+            <div class="px-5 py-3.5 bg-white border-b border-cream-200 flex items-center justify-between z-10 sticky top-0">
+                <span id="detailCategoryBadge" class="text-[11px] font-bold tracking-widest text-navy-600 uppercase bg-cream-100 px-3 py-1 rounded-full border border-cream-300">
+                    Kategori
+                </span>
+                <button onclick="closeProductDetailModal()" class="text-navy-600/70 hover:text-navy-900 text-xl w-8 h-8 rounded-full flex items-center justify-center hover:bg-cream-100 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Content Body -->
+            <div class="overflow-y-auto flex-1">
+                
+                <!-- Zoomable Image Viewport -->
+                <div class="relative w-full bg-navy-900 group">
+                    <div id="zoomViewport" class="zoom-viewport w-full h-72 sm:h-80 flex items-center justify-center relative select-none">
+                        <img id="detailProductImg" src="" alt="Ürün Fotoğrafı" class="zoom-image max-w-full max-h-full object-contain" draggable="false">
+                        <div id="detailImagePlaceholder" class="hidden text-center p-6 text-white/60">
+                            <i class="fa-solid fa-image text-4xl mb-2"></i>
+                            <p class="text-xs font-medium">Fotoğraf Yakında Ekleniyor</p>
+                        </div>
+                    </div>
+
+                    <!-- Zoom Controls Floating Toolbar -->
+                    <div id="zoomControlsToolbar" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white rounded-full px-4 py-1.5 flex items-center gap-3 text-xs shadow-lg z-10 border border-white/20">
+                        <button onclick="changeZoom(-0.3)" class="hover:text-emerald-300 p-1 transition" title="Küçült">
+                            <i class="fa-solid fa-magnifying-glass-minus text-sm"></i>
+                        </button>
+                        <span id="zoomLevelIndicator" class="font-mono font-semibold text-[11px] min-w-[40px] text-center">100%</span>
+                        <button onclick="changeZoom(0.3)" class="hover:text-emerald-300 p-1 transition" title="Büyüt">
+                            <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
+                        </button>
+                        <div class="w-[1px] h-3 bg-white/30"></div>
+                        <button onclick="resetZoom()" class="hover:text-amber-300 text-[10px] font-bold uppercase transition" title="Sıfırla">
+                            Sıfırla
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Product Text Info Section -->
+                <div class="p-6 space-y-4 bg-[#FAF6EE]">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h3 id="detailProductTitle" class="serif-title text-2xl sm:text-3xl font-extrabold text-navy-600 leading-tight">
+                                Ürün Adı
+                            </h3>
+                            <p class="text-xs text-navy-600/50 mt-1 font-semibold">Badez Bakery Özel Lezzeti</p>
+                        </div>
+                        <div class="bg-navy-600 text-white px-4 py-2 rounded-2xl shadow-sm text-right flex-shrink-0">
+                            <span id="detailProductPrice" class="text-lg sm:text-xl font-extrabold block">0 TL</span>
+                        </div>
+                    </div>
+
+                    <!-- Description Box -->
+                    <div class="bg-white p-4 rounded-2xl border border-cream-200/90 shadow-xs space-y-1.5">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-navy-600/70 flex items-center gap-1.5">
+                            <i class="fa-solid fa-align-left text-navy-600"></i>
+                            Ürün Açıklaması & İçindekiler
+                        </h4>
+                        <p id="detailProductDescription" class="text-sm text-navy-800 leading-relaxed font-normal whitespace-pre-line">
+                            Açıklama yükleniyor...
+                        </p>
+                    </div>
+
+                    <!-- Face-to-Face Order Notice -->
+                    <div class="bg-cream-200/60 p-3.5 rounded-2xl border border-cream-300 text-center text-xs text-navy-600/80 font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-store text-navy-600 text-sm"></i>
+                        <span>Siparişinizi garsonumuza veya kasamıza iletebilirsiniz. Afiyet olsun!</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminAuthModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 text-center relative border border-cream-300">
+            <button onclick="closeAdminAuthModal()" class="absolute right-4 top-4 text-navy-600/50 hover:text-navy-900">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="w-14 h-14 bg-navy-50 rounded-full flex items-center justify-center mx-auto text-navy-600 text-2xl">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+
+            <h3 class="serif-title text-xl font-bold text-navy-600">Yönetici Girişi</h3>
+            <p class="text-xs text-navy-600/70">Fotoğraf, açıklama ve fiyat güncellemeleri için PIN giriniz.</p>
+
+            <div>
+                <input type="password" id="adminPinInput" maxlength="6" placeholder="PIN Kodu" class="w-full text-center text-2xl tracking-widest py-3 border border-cream-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-navy-600/40 text-navy-900 font-bold">
+            </div>
+
+            <button onclick="verifyAdminPin()" class="w-full bg-navy-600 hover:bg-navy-700 text-white font-bold py-3 rounded-2xl transition shadow-md">
+                Giriş Yap
+            </button>
+        </div>
+    </div>
+
+    <!-- Product Edit / Image & Description Upload Modal -->
+    <div id="editProductModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-[#FAF6EE] rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 relative border border-cream-300 my-8">
+            <button onclick="closeEditModal()" class="absolute right-4 top-4 text-navy-600/50 hover:text-navy-900">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <h3 id="editModalTitle" class="serif-title text-xl font-bold text-navy-600">Ürün Düzenle & Fotoğraf Ekle</h3>
+
+            <input type="hidden" id="editItemId">
+
+            <div class="space-y-3">
+                <!-- Preview Canvas Image Container -->
+                <div class="relative w-full h-44 bg-cream-200 rounded-2xl overflow-hidden flex items-center justify-center border border-cream-300 group">
+                    <img id="editModalImagePreview" src="" alt="Önizleme" class="w-full h-full object-cover hidden">
+                    <div id="editModalImagePlaceholder" class="text-center p-4">
+                        <i class="fa-solid fa-camera text-3xl text-navy-600/40 mb-1"></i>
+                        <p class="text-xs text-navy-600/60 font-medium">Fotoğraf eklenmemiş</p>
+                    </div>
+                </div>
+
+                <!-- Image Upload Options -->
+                <div>
+                    <label class="block text-xs font-bold text-navy-600 uppercase mb-1">1. Cihazdan Fotoğraf Yükle</label>
+                    <input type="file" id="imageFileInput" accept="image/*" onchange="handleFileSelect(event)" class="w-full text-xs text-navy-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-navy-600 file:text-white hover:file:bg-navy-700 cursor-pointer">
+                </div>
+
+                <div class="flex items-center gap-2 my-1">
+                    <div class="h-[1px] bg-cream-300 flex-1"></div>
+                    <span class="text-[10px] text-navy-600/50 uppercase font-bold">Veya</span>
+                    <div class="h-[1px] bg-cream-300 flex-1"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-navy-600 uppercase mb-1">2. Fotoğraf URL Adresi</label>
+                    <input type="url" id="editImageUrlInput" onchange="updatePreviewFromUrl()" placeholder="https://..." class="w-full px-3 py-2 text-xs bg-white border border-cream-300 rounded-xl text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-600">
+                </div>
+
+                <!-- Product Name -->
+                <div>
+                    <label class="block text-xs font-bold text-navy-600 uppercase mb-1">Ürün Adı</label>
+                    <input type="text" id="editItemName" class="w-full px-3 py-2 text-sm bg-white border border-cream-300 rounded-xl text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-600">
+                </div>
+
+                <!-- Description Field -->
+                <div>
+                    <label class="block text-xs font-bold text-navy-600 uppercase mb-1">Ürün Açıklaması / İçindekiler</label>
+                    <textarea id="editItemDescription" rows="3" placeholder="Örn: Taze Belçika çikolatası, çilek ve muhteşem çıtır waffle hamuru..." class="w-full px-3 py-2 text-xs bg-white border border-cream-300 rounded-xl text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-600 resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-navy-600 uppercase mb-1">Fiyat (TL)</label>
+                        <input type="number" id="editItemPrice" class="w-full px-3 py-2 text-sm bg-white border border-cream-300 rounded-xl text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-navy-600 uppercase mb-1">Kategori</label>
+                        <select id="editItemCategory" class="w-full px-3 py-2 text-sm bg-white border border-cream-300 rounded-xl text-navy-900 focus:outline-none focus:ring-1 focus:ring-navy-600">
+                            <option value="Waffles">Waffles</option>
+                            <option value="Cup Cakes">Cup Cakes</option>
+                            <option value="CheeseCakes">CheeseCakes</option>
+                            <option value="Mono Cakes">Mono Cakes</option>
+                            <option value="Hot Drinks">Hot Drinks</option>
+                            <option value="Cold Drinks">Cold Drinks</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex gap-2">
+                <button onclick="saveItemChanges()" class="flex-1 bg-navy-600 hover:bg-navy-700 text-white py-3 rounded-2xl font-bold text-sm shadow-md transition">
+                    Kaydet ve Yayınla
+                </button>
+                <button onclick="deleteCurrentItem()" class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-3 rounded-2xl font-bold text-sm transition" title="Sil">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-navy-900 text-white px-5 py-2.5 rounded-full text-xs font-semibold shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none flex items-center gap-2">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessage">İşlem başarılı</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'badez-bakery-menu';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-key",
+            authDomain: "demo-app.firebaseapp.com",
+            projectId: "demo-app",
+            storageBucket: "demo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:123456"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // State Management
+        let menuItems = [];
+        let activeCategory = "Tümü";
+        let isAdminLoggedIn = false;
+        let selectedCompressedImageData = "";
+        let selectedDetailItemId = null;
+
+        // Categories List
+        const categories = ["Tümü", "Waffles", "Cup Cakes", "CheeseCakes", "Mono Cakes", "Hot Drinks", "Cold Drinks"];
+
+        // Default Initial Products database matching image 2 with descriptions
+        const defaultProducts = [
+            // Waffles
+            { id: "item-1", name: "Badez Classic Waffle", category: "Waffles", price: 300, imageUrl: "", description: "Taze pişirilmiş leziz çıtır waffle hamuru üzerine özel eritilmiş sütlü çikolata, çilek, muz ve fındık parçaları." },
+            { id: "item-2", name: "Badez Special Waffle", category: "Waffles", price: 350, imageUrl: "", description: "Çifte çikolata kaplama, Antep fıstığı ezmesi, taze böğürtlen, muz, çilek ve özel dondurma topu ile sunulan imza lezzetimiz." },
+            
+            // Cup Cakes
+            { id: "item-3", name: "Pistachio Cup", category: "Cup Cakes", price: 250, imageUrl: "", description: "Özel taze Antep fıstıklı krema dolgusu ve kıtır fıstık parçacıklarıyla hazırlanan nefis kap tatlısı." },
+            { id: "item-4", name: "Lotus Cup", category: "Cup Cakes", price: 200, imageUrl: "", description: "Orijinal Lotus Biscoff bisküvisi ezmesi ve kadife gibi ipeksi krema katmanları." },
+            { id: "item-5", name: "Spoonful Cup", category: "Cup Cakes", price: 200, imageUrl: "", description: "Kaşık kaşık yenecek yoğun bitter çikolatalı ganaj ve taze kek katmanları." },
+            { id: "item-6", name: "Strawberry Mag", category: "Cup Cakes", price: 200, imageUrl: "", description: "Taze mevsim çilekleri, özel vanilyalı pastacı kreması ve bisküvi kıtırları." },
+            { id: "item-7", name: "Banana Mag", category: "Cup Cakes", price: 200, imageUrl: "", description: "Dilimlenmiş taze tatlı muz, ipeksi krema ve nefis karamel dokunuşları." },
+            { id: "item-8", name: "Oreo Nutella Mag", category: "Cup Cakes", price: 200, imageUrl: "", description: "Oreo bisküvi parçaları ve yoğun Nutella kremasının karşı konulmaz uyumu." },
+
+            // CheeseCakes
+            { id: "item-9", name: "Oreo CheeseCake", category: "CheeseCakes", price: 275, imageUrl: "", description: "Kıtır Oreo tabanlı, fırınlanmış özel peynir kreması ve üstünde Oreo parçaları." },
+            { id: "item-10", name: "Chocolate CheeseCake", category: "CheeseCakes", price: 275, imageUrl: "", description: "Zengin çikolata katmanlı, eriyen kıvamda gurme cheesecake." },
+            { id: "item-11", name: "Lotus CheeseCake", category: "CheeseCakes", price: 275, imageUrl: "", description: "Lotus karamelli bisküvi tabanı ve karamelize Biscoff sosu kaplaması." },
+            { id: "item-12", name: "Raspberry CheeseCake", category: "CheeseCakes", price: 275, imageUrl: "", description: "Taze ahududu tanelerinden yapılmış hafif ekşimsi nefis meyve soslu cheesecake." },
+            { id: "item-13", name: "Lemon CheeseCake", category: "CheeseCakes", price: 275, imageUrl: "", description: "Ferahlatıcı taze limon sosu ve kremsi cheesecake dokusu." },
+            { id: "item-14", name: "San Sebastian", category: "CheeseCakes", price: 330, imageUrl: "", description: "Üstü yanık karamelize, içi yumuşacık kremsi dokuda İspanyol usulü San Sebastian." },
+
+            // Mono Cakes
+            { id: "item-15", name: "Italian tiramisu", category: "Mono Cakes", price: 300, imageUrl: "", description: "Orijinal İtalyan mascarpone peyniri ve espresso ile ıslatılmış kedi dili bisküvileri." },
+            { id: "item-16", name: "Pistachio Dome", category: "Mono Cakes", price: 370, imageUrl: "", description: "Gerçek Antep fıstığı dolgulu, dışı fıstık parçalarıyla kaplı kubbe pasta." },
+            { id: "item-17", name: "Lotus Dome", category: "Mono Cakes", price: 300, imageUrl: "", description: "Karamelizasyon lezzetiyle hazırlanan özel Lotus kubbe porsiyon pasta." },
+            { id: "item-18", name: "Chocolate Dome", category: "Mono Cakes", price: 300, imageUrl: "", description: "Yoğun bitter ve sütlü çikolata severler için tek porsiyonluk gurme pasta." },
+            { id: "item-19", name: "Coconut Dome", category: "Mono Cakes", price: 300, imageUrl: "", description: "Taze hindistan cevizi taneleri ve beyaz çikolatalı krema katmanı." },
+            { id: "item-20", name: "BlueBerry Cake", category: "Mono Cakes", price: 300, imageUrl: "", description: "Taze yaban mersini taneleri ile tatlandırılmış hafif ve nefis mono pasta." },
+            { id: "item-21", name: "American Browni", category: "Mono Cakes", price: 300, imageUrl: "", description: "İçi nemli, dışı çıtır kabuklu Amerikan tarzı yoğun çikolatalı brownie." },
+            { id: "item-22", name: "Bitter Prof Cake", category: "Mono Cakes", price: 300, imageUrl: "", description: "İçi krema dolu profiterol topları ve üzerine dökülen sıcak bitter çikolata sosu." },
+            { id: "item-23", name: "Paris Breast Fruit Cake", category: "Mono Cakes", price: 300, imageUrl: "", description: "Halka şeklinde hafif şu hamuru, taze meyveler ve ipeksi pastacı kreması." },
+
+            // Hot Drinks
+            { id: "item-24", name: "Infusion Tea", category: "Hot Drinks", price: 25, imageUrl: "", description: "Taze demlenmiş geleneksel harman çay." },
+            { id: "item-25", name: "Turkish Coffe", category: "Hot Drinks", price: 100, imageUrl: "", description: "Özel kavrulmuş çekirdeklerden taze pişirilen geleneksel Türk kahvesi." },
+            { id: "item-26", name: "Espresso", category: "Hot Drinks", price: 100, imageUrl: "", description: "%100 Arabica çekirdeklerinden taze çekilmiş yoğun kıvamlı espresso." },
+            { id: "item-27", name: "Americano", category: "Hot Drinks", price: 100, imageUrl: "", description: "Espresso üzerine eklenen sıcak su ile yumuşak içimli filtre lezzeti." },
+            { id: "item-28", name: "Latte", category: "Hot Drinks", price: 120, imageUrl: "", description: "Taze espresso ve kadifemsi buharla ısıtılmış süt köpüğü." },
+            { id: "item-29", name: "Filtre Coffe", category: "Hot Drinks", price: 90, imageUrl: "", description: "Günlük taze demlenen harman filtre kahve." },
+
+            // Cold Drinks
+            { id: "item-30", name: "Ice Latte", category: "Cold Drinks", price: 120, imageUrl: "", description: "Soğuk süt, bol buz ve taze çekilmiş espresso." },
+            { id: "item-31", name: "Ice Americano", category: "Cold Drinks", price: 100, imageUrl: "", description: "Buzlu soğuk su üzerinde espresso ile serinletici kahve lezzeti." },
+            { id: "item-32", name: "Coca Cola", category: "Cold Drinks", price: 75, imageUrl: "", description: "Kutu soğuk Coca Cola." },
+            { id: "item-33", name: "Fanta", category: "Cold Drinks", price: 75, imageUrl: "", description: "Kutu soğuk Fanta." },
+            { id: "item-34", name: "Sprite", category: "Cold Drinks", price: 75, imageUrl: "", description: "Kutu soğuk Sprite." },
+            { id: "item-35", name: "Cappy Peach", category: "Cold Drinks", price: 75, imageUrl: "", description: "Kutu Cappy Şeftali Meyve Suyu." },
+            { id: "item-36", name: "Cappy Cherry", category: "Cold Drinks", price: 75, imageUrl: "", description: "Kutu Cappy Vişne Meyve Suyu." },
+            { id: "item-37", name: "Capri-Sun", category: "Cold Drinks", price: 35, imageUrl: "", description: "Eğlenceli ve serinletici çocuk meyve suyu." },
+            { id: "item-38", name: "Beyoğlu Gazoz", category: "Cold Drinks", price: 75, imageUrl: "", description: "Geleneksel Beyoğlu lezzetiyle ferahlatıcı cam şişe gazoz." },
+            { id: "item-39", name: "Uludağ Pre. Soda", category: "Cold Drinks", price: 75, imageUrl: "", description: "Uludağ Premium Doğal Zengin Mineralli Maden Suyu." },
+            { id: "item-40", name: "Erikli Su Glass", category: "Cold Drinks", price: 35, imageUrl: "", description: "Cam şişede taze kaynak suyu." }
+        ];
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            renderCategoryChips();
+            initZoomSystem();
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.warn("Auth warning:", err);
+            }
+
+            // Sync with Firestore
+            listenToMenuItems();
+        });
+
+        const menuCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'menu_items');
+
+        async function listenToMenuItems() {
+            onSnapshot(menuCollectionRef, async (snapshot) => {
+                if (snapshot.empty) {
+                    console.log("Initializing default menu items into Firestore...");
+                    for (const item of defaultProducts) {
+                        const itemDoc = doc(db, 'artifacts', appId, 'public', 'data', 'menu_items', item.id);
+                        await setDoc(itemDoc, item);
+                    }
+                } else {
+                    menuItems = [];
+                    snapshot.forEach(docSnap => {
+                        menuItems.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                    renderProductsFeed();
+                }
+            }, (error) => {
+                console.error("Firestore snapshot error:", error);
+                if (menuItems.length === 0) {
+                    menuItems = [...defaultProducts];
+                    renderProductsFeed();
+                }
+            });
+        }
+
+        // Category Rendering
+        function renderCategoryChips() {
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = categories.map(cat => {
+                const isActive = activeCategory === cat;
+                const baseStyle = "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border select-none";
+                const activeStyle = isActive 
+                    ? "bg-navy-600 text-white border-navy-600 shadow-md" 
+                    : "bg-white text-navy-600 border-cream-300 hover:border-navy-600/50";
+                return `<button onclick="selectCategory('${cat}')" class="${baseStyle} ${activeStyle}">${cat}</button>`;
+            }).join('');
+        }
+
+        window.selectCategory = function(category) {
+            activeCategory = category;
+            renderCategoryChips();
+            renderProductsFeed();
+        }
+
+        window.filterProducts = function() {
+            renderProductsFeed();
+        }
+
+        function renderProductsFeed() {
+            const feed = document.getElementById('productsFeed');
+            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+            const emptyState = document.getElementById('emptyState');
+
+            const filtered = menuItems.filter(item => {
+                const matchesCategory = activeCategory === "Tümü" || item.category === activeCategory;
+                const matchesSearch = item.name.toLowerCase().includes(searchVal) || item.category.toLowerCase().includes(searchVal) || (item.description && item.description.toLowerCase().includes(searchVal));
+                return matchesCategory && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                feed.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            feed.innerHTML = filtered.map(item => {
+                const hasImage = item.imageUrl && item.imageUrl.trim() !== '';
+                const descriptionText = item.description || "Özel tarifimizle taptaze hazırlanan Badez Bakery lezzeti.";
+
+                return `
+                <div onclick="openProductDetail('${item.id}')" class="product-card bg-[#FAF6EE] border border-cream-200 rounded-3xl overflow-hidden p-3.5 sm:p-5 space-y-3 relative group cursor-pointer hover:border-navy-600/30 transition">
+                    
+                    <!-- Admin Edit Overlay Button -->
+                    ${isAdminLoggedIn ? `
+                        <button onclick="event.stopPropagation(); openEditModal('${item.id}')" class="absolute top-5 right-5 z-20 bg-navy-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-lg flex items-center gap-1.5 hover:bg-navy-700 transition">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>Düzenle</span>
+                        </button>
+                    ` : ''}
+
+                    <!-- Image Display Box -->
+                    <div class="w-full h-56 sm:h-64 bg-cream-200/70 rounded-2xl overflow-hidden flex items-center justify-center relative border border-cream-200/80">
+                        ${hasImage ? `
+                            <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'text-center p-4\'><i class=\'fa-solid fa-image text-3xl text-navy-600/30\'></i><p class=\'text-navy-600/60 font-serif text-lg font-bold mt-2\'>${item.name}</p></div>';">
+                        ` : `
+                            <div class="text-center p-6 flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-cookie-bite text-3xl text-navy-600/30 mb-2"></i>
+                                <h3 class="serif-title text-2xl sm:text-3xl font-extrabold text-navy-600 tracking-wide">${item.name}</h3>
+                            </div>
+                        `}
+                        <div class="absolute bottom-3 right-3 bg-black/50 backdrop-blur-md text-white px-2.5 py-1 rounded-full text-[10px] font-bold opacity-0 group-hover:opacity-100 transition">
+                            <i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Yaklaştır
+                        </div>
+                    </div>
+
+                    <!-- Details Box -->
+                    <div class="flex items-start justify-between gap-3 px-1">
+                        <div class="space-y-0.5">
+                            <h4 class="serif-title text-lg sm:text-xl font-bold text-navy-600 leading-snug">${item.name}</h4>
+                            <span class="text-[10px] font-bold tracking-widest text-navy-600/60 uppercase block">${item.category}</span>
+                        </div>
+                        <div class="bg-cream-200/90 px-3.5 py-1.5 rounded-xl border border-cream-300/70 flex-shrink-0">
+                            <span class="text-sm sm:text-base font-extrabold text-navy-600">${item.price} TL</span>
+                        </div>
+                    </div>
+
+                    <!-- Short Description Snippet -->
+                    <p class="text-xs text-navy-600/70 line-clamp-2 px-1 font-normal leading-relaxed">
+                        ${descriptionText}
+                    </p>
+
+                    <!-- Click Action Banner -->
+                    <div class="pt-1 flex items-center justify-between text-navy-600 font-semibold text-xs border-t border-cream-200/80 px-1">
+                        <span class="text-[11px] text-navy-600/60 font-medium">Fotoğraf ve ayrıntılar</span>
+                        <span class="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                            İncele <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        let currentZoomScale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0, startY = 0;
+
+        window.openProductDetail = function(id) {
+            const item = menuItems.find(p => p.id === id);
+            if (!item) return;
+
+            selectedDetailItemId = id;
+
+            document.getElementById('detailProductTitle').innerText = item.name;
+            document.getElementById('detailProductPrice').innerText = `${item.price} TL`;
+            document.getElementById('detailCategoryBadge').innerText = item.category;
+            
+            const descEl = document.getElementById('detailProductDescription');
+            descEl.innerText = item.description && item.description.trim() !== '' 
+                ? item.description 
+                : "Özel tarifimizle günlük olarak hazırlanan taptaze lezzetimiz.";
+
+            const imgEl = document.getElementById('detailProductImg');
+            const placeholderEl = document.getElementById('detailImagePlaceholder');
+
+            if (item.imageUrl && item.imageUrl.trim() !== '') {
+                imgEl.src = item.imageUrl;
+                imgEl.classList.remove('hidden');
+                placeholderEl.classList.add('hidden');
+            } else {
+                imgEl.src = '';
+                imgEl.classList.add('hidden');
+                placeholderEl.classList.remove('hidden');
+            }
+
+            resetZoom();
+
+            const modal = document.getElementById('productDetailModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.closeProductDetailModal = function() {
+            const modal = document.getElementById('productDetailModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            resetZoom();
+        }
+
+        function initZoomSystem() {
+            const viewport = document.getElementById('zoomViewport');
+
+            // Mouse Drag & Touch Pan handlers for zoomed image
+            const handleStart = (e) => {
+                if (currentZoomScale <= 1) return;
+                isDragging = true;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                startX = clientX - translateX;
+                startY = clientY - translateY;
+            };
+
+            const handleMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                translateX = clientX - startX;
+                translateY = clientY - startY;
+                applyZoomTransform();
+            };
+
+            const handleEnd = () => {
+                isDragging = false;
+            };
+
+            viewport.addEventListener('mousedown', handleStart);
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleEnd);
+
+            viewport.addEventListener('touchstart', handleStart, { passive: false });
+            window.addEventListener('touchmove', handleMove, { passive: false });
+            window.addEventListener('touchend', handleEnd);
+
+            // Double tap / double click quick zoom toggle
+            let lastTap = 0;
+            viewport.addEventListener('click', () => {
+                const now = Date.now();
+                if (now - lastTap < 300) {
+                    if (currentZoomScale > 1) {
+                        resetZoom();
+                    } else {
+                        changeZoom(1.2);
+                    }
+                }
+                lastTap = now;
+            });
+        }
+
+        window.changeZoom = function(delta) {
+            currentZoomScale = Math.min(Math.max(currentZoomScale + delta, 1), 3.5);
+            if (currentZoomScale === 1) {
+                translateX = 0;
+                translateY = 0;
+            }
+            applyZoomTransform();
+        }
+
+        window.resetZoom = function() {
+            currentZoomScale = 1;
+            translateX = 0;
+            translateY = 0;
+            applyZoomTransform();
+        }
+
+        function applyZoomTransform() {
+            const img = document.getElementById('detailProductImg');
+            const indicator = document.getElementById('zoomLevelIndicator');
+            if (img) {
+                img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoomScale})`;
+            }
+            if (indicator) {
+                indicator.innerText = `${Math.round(currentZoomScale * 100)}%`;
+            }
+        }
+
+        window.openAdminAuthModal = function() {
+            if (isAdminLoggedIn) {
+                showToast("Yönetici modundasınız.");
+                return;
+            }
+            document.getElementById('adminAuthModal').classList.remove('hidden');
+            document.getElementById('adminAuthModal').classList.add('flex');
+            document.getElementById('adminPinInput').value = '';
+        }
+
+        window.closeAdminAuthModal = function() {
+            document.getElementById('adminAuthModal').classList.add('hidden');
+            document.getElementById('adminAuthModal').classList.remove('flex');
+        }
+
+        window.verifyAdminPin = function() {
+            const pin = document.getElementById('adminPinInput').value;
+            if (pin === "0306") {
+                isAdminLoggedIn = true;
+                closeAdminAuthModal();
+                document.getElementById('adminNoticeBar').classList.remove('hidden');
+                document.getElementById('adminBtnText').innerText = "Yönetici Modu";
+                renderProductsFeed();
+                showToast("Yönetici girişi başarılı!");
+            } else {
+                showToast("Hatalı PIN Kodu!", "error");
+            }
+        }
+
+        window.logoutAdmin = function() {
+            isAdminLoggedIn = false;
+            document.getElementById('adminNoticeBar').classList.add('hidden');
+            document.getElementById('adminBtnText').innerText = "Yönetici Girişi";
+            renderProductsFeed();
+            showToast("Yönetici modundan çıkıldı.");
+        }
+
+        window.openEditModal = function(id) {
+            const item = menuItems.find(p => p.id === id);
+            if (!item) return;
+
+            document.getElementById('editItemId').value = item.id;
+            document.getElementById('editItemName').value = item.name;
+            document.getElementById('editItemPrice').value = item.price;
+            document.getElementById('editItemCategory').value = item.category;
+            document.getElementById('editItemDescription').value = item.description || '';
+            document.getElementById('editImageUrlInput').value = item.imageUrl || '';
+            document.getElementById('imageFileInput').value = '';
+
+            selectedCompressedImageData = item.imageUrl || '';
+            updatePreviewUI(selectedCompressedImageData);
+
+            document.getElementById('editProductModal').classList.remove('hidden');
+            document.getElementById('editProductModal').classList.add('flex');
+        }
+
+        window.openAddItemModal = function() {
+            const newId = 'item-' + Date.now();
+            document.getElementById('editItemId').value = newId;
+            document.getElementById('editItemName').value = 'Yeni Lezzet';
+            document.getElementById('editItemPrice').value = 100;
+            document.getElementById('editItemCategory').value = 'Waffles';
+            document.getElementById('editItemDescription').value = '';
+            document.getElementById('editImageUrlInput').value = '';
+            document.getElementById('imageFileInput').value = '';
+
+            selectedCompressedImageData = '';
+            updatePreviewUI('');
+
+            document.getElementById('editProductModal').classList.remove('hidden');
+            document.getElementById('editProductModal').classList.add('flex');
+        }
+
+        window.closeEditModal = function() {
+            document.getElementById('editProductModal').classList.add('hidden');
+            document.getElementById('editProductModal').classList.remove('flex');
+        }
+
+        // Image compression before Firestore save
+        window.handleFileSelect = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 650;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    selectedCompressedImageData = canvas.toDataURL('image/jpeg', 0.75);
+                    document.getElementById('editImageUrlInput').value = '';
+                    updatePreviewUI(selectedCompressedImageData);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.updatePreviewFromUrl = function() {
+            const url = document.getElementById('editImageUrlInput').value.trim();
+            if (url) {
+                selectedCompressedImageData = url;
+                updatePreviewUI(url);
+            }
+        }
+
+        function updatePreviewUI(src) {
+            const imgEl = document.getElementById('editModalImagePreview');
+            const placeholder = document.getElementById('editModalImagePlaceholder');
+
+            if (src && src.trim() !== '') {
+                imgEl.src = src;
+                imgEl.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                imgEl.src = '';
+                imgEl.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        }
+
+        window.saveItemChanges = async function() {
+            const id = document.getElementById('editItemId').value;
+            const name = document.getElementById('editItemName').value.trim();
+            const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+            const category = document.getElementById('editItemCategory').value;
+            const description = document.getElementById('editItemDescription').value.trim();
+
+            if (!name) {
+                showToast("Lütfen ürün adını giriniz.", "error");
+                return;
+            }
+
+            const updatedData = {
+                id: id,
+                name: name,
+                price: price,
+                category: category,
+                description: description,
+                imageUrl: selectedCompressedImageData
+            };
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'menu_items', id);
+                await setDoc(docRef, updatedData, { merge: true });
+                closeEditModal();
+                showToast("Ürün bilgileri kaydedildi!");
+            } catch (err) {
+                console.error("Save error:", err);
+                showToast("Kaydedilirken hata oluştu.", "error");
+            }
+        }
+
+        window.deleteCurrentItem = async function() {
+            const id = document.getElementById('editItemId').value;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'menu_items', id);
+                await deleteDoc(docRef);
+                closeEditModal();
+                showToast("Ürün silindi.");
+            } catch (err) {
+                console.error("Delete error:", err);
+                showToast("Silinirken hata oluştu.", "error");
+            }
+        }
+
+        // Toast Helper
+        function showToast(msg, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            if (type === "error") {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-red-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
+```
